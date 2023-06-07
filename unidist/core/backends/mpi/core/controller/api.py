@@ -234,7 +234,7 @@ def is_initialized():
     global is_mpi_initialized
     return is_mpi_initialized
 
-
+from sys import getsizeof
 # TODO: cleanup before shutdown?
 def shutdown():
     """
@@ -251,6 +251,7 @@ def shutdown():
         for rank_id in range(communication.MPIRank.MONITOR, mpi_state.world_size):
             # We use a blocking send here because we have to wait for
             # completion of the communication, which is necessary for the pipeline to continue.
+            logger.debug("The size is {}".format(getsizeof(object_store.get_instance()._data_map)))
             communication.mpi_send_object(
                 mpi_state.comm, common.Operation.CANCEL, rank_id
             )

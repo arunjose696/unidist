@@ -210,7 +210,7 @@ class TaskStore:
 
             async def execute():
                 try:
-                    w_logger.debug("- Start task execution -")
+                    w_logger.debug("- Start task execution -{}".format(time.time_ns()))
 
                     for arg in args:
                         if isinstance(arg, Exception):
@@ -228,7 +228,7 @@ class TaskStore:
                     w_logger.info(
                         "Task evaluation time: {}".format(time.perf_counter() - start)
                     )
-                    w_logger.debug("- End task execution -")
+                    w_logger.debug("- End task execution -{}".format(time.time_ns()))
 
                 except Exception as e:
                     w_logger.debug("Exception - {}".format(e))
@@ -277,7 +277,7 @@ class TaskStore:
             async_task.add_done_callback(self.background_tasks.discard)
         else:
             try:
-                w_logger.debug("- Start task execution -")
+                w_logger.debug("- Start task execution -{}".format(time.time_ns()))
 
                 for arg in args:
                     if isinstance(arg, Exception):
@@ -294,7 +294,7 @@ class TaskStore:
                 w_logger.info(
                     "Task evaluation time: {}".format(time.perf_counter() - start)
                 )
-                w_logger.debug("- End task execution -")
+                w_logger.debug("- End task execution -{}".format(time.time_ns()))
 
             except Exception as e:
                 w_logger.debug("Exception - {}".format(e))

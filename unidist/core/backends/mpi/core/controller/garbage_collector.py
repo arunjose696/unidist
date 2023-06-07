@@ -34,12 +34,12 @@ class GarbageCollector:
     def __init__(self, object_store):
         # Cleanup frequency settings
         self._cleanup_counter = 1
-        self._cleanup_threshold = 5
-        self._time_threshold = 1  # seconds
+        self._cleanup_threshold = 3
+        self._time_threshold = 0.5  # seconds
         self._timestamp = 0  # seconds
         # Cleanup list of DataIDs
         self._cleanup_list = []
-        self._cleanup_list_threshold = 10
+        self._cleanup_list_threshold = 5
         # Reference to the global object store
         self._object_store = object_store
         # Task submitted counter

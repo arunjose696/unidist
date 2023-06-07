@@ -7,7 +7,7 @@
 from collections import defaultdict
 import socket
 import time
-
+import traceback
 try:
     import mpi4py
 except ImportError:
@@ -33,6 +33,8 @@ sleep_time = 0.0001
 
 # Logger configuration
 logger = common.get_logger("communication", "communication.log")
+alogger = common.get_logger("acommunication", "acommunication.log")
+blogger = common.get_logger("bcommunication", "bcommunication.log")
 is_logger_header_printed = False
 
 
@@ -178,6 +180,12 @@ def mpi_send_object(comm, data, dest_rank):
     which is necessary for the pipeline to continue, or when the receiver is waiting for a result.
     Otherwise, use non-blocking ``mpi_isend_object``.
     """
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "4 sssssssssssssss"))
+    try:
+        if set([128,5,75,2,46]).issubset(set(data)):
+            blogger.debug("caught here{} {}".format(time.time_ns(),  traceback.format_exc()))
+    except:
+        pass
     comm.send(data, dest=dest_rank)
 
 
@@ -199,6 +207,12 @@ def mpi_isend_object(comm, data, dest_rank):
     object
         A handler to MPI_Isend communication result.
     """
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "0 iiiiiiiii"))
+    try:
+        if set([128,5,75,2,46]).issubset(set(data)):
+            blogger.debug("caught here{} {}".format(time.time_ns(),  traceback.format_exc()))
+    except:
+        pass
     return comm.isend(data, dest=dest_rank)
 
 
@@ -223,7 +237,10 @@ def mpi_send_buffer(comm, buffer_size, buffer, dest_rank):
     which is necessary for the pipeline to continue, or when the receiver is waiting for a result.
     Otherwise, use non-blocking ``mpi_isend_buffer``.
     """
+    
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "1 sssssssssssssss"))
     comm.send(buffer_size, dest=dest_rank)
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "2 sssssssssssssss"))
     comm.Send([buffer, MPI.CHAR], dest=dest_rank)
 
 
@@ -270,8 +287,11 @@ def mpi_isend_buffer(comm, buffer_size, buffer, dest_rank):
         A handler to MPI_Isend communication result.
     """
     requests = []
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "1 iiiiiiiii"))
+    
     h1 = comm.isend(buffer_size, dest=dest_rank)
     requests.append((h1, None))
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "2 iiiiiiiii"))
     h2 = comm.Isend([buffer, MPI.CHAR], dest=dest_rank)
     requests.append((h2, buffer))
     return requests
@@ -355,12 +375,16 @@ def _send_complex_data_impl(comm, s_data, raw_buffers, buffer_count, dest_rank):
         "buffer_count": buffer_count,
         "raw_buffers_len": [len(sbuf) for sbuf in raw_buffers],
     }
+    logger
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "3 sssssssssssssss"))
 
     comm.send(info, dest=dest_rank)
     with pkl5._bigmpi as bigmpi:
         comm.Send(bigmpi(s_data), dest=dest_rank)
         for sbuf in raw_buffers:
             comm.Send(bigmpi(sbuf), dest=dest_rank)
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  "4 sssssssssssssss"))
+    logger
 
 
 def send_complex_data(comm, data, dest_rank):
@@ -404,7 +428,8 @@ def send_complex_data(comm, data, dest_rank):
     # For caching purpose
     return s_data, raw_buffers, buffer_count
 
-
+import random
+random.seed(0)
 def _isend_complex_data_impl(comm, s_data, raw_buffers, buffer_count, dest_rank):
     """
     Send serialized complex data.
@@ -436,18 +461,25 @@ def _isend_complex_data_impl(comm, s_data, raw_buffers, buffer_count, dest_rank)
         "s_data_len": len(s_data),
         "buffer_count": buffer_count,
         "raw_buffers_len": [len(sbuf) for sbuf in raw_buffers],
+        "uuid":random.getrandbits(32)
     }
+    
+    logger.debug("-Rank from={}, to={} Start send -{}  uuid ={}".format(MPIState.get_instance().rank,dest_rank,time.time_ns(), info["uuid"]))
 
     h1 = comm.isend(info, dest=dest_rank)
     handlers.append((h1, None))
 
     with pkl5._bigmpi as bigmpi:
         h2 = comm.Isend(bigmpi(s_data), dest=dest_rank)
+        
+        
+        logger.warning("send {}+*&&7>>>>>>>>>>>>>>>>>>>>{}".format(info["uuid"],bigmpi(s_data)))
         handlers.append((h2, s_data))
         for sbuf in raw_buffers:
+            logger.warning("send {}+*&&7>>>>>>>>>>>>>>>>>>>>{}".format(info["uuid"],bigmpi(sbuf)))
             h_sbuf = comm.Isend(bigmpi(sbuf), dest=dest_rank)
             handlers.append((h_sbuf, sbuf))
-
+    logger.debug("- end send -{} uuid={}".format(time.time_ns(),  info["uuid"]))
     return handlers
 
 
@@ -517,20 +549,47 @@ def recv_complex_data(comm, source_rank):
     # in a long running data receive operations.
 
     info = comm.recv(source=source_rank)
-
+    flag=False
+    if "uuid" in info:
+        flag=True
+        
     msgpack_buffer = bytearray(info["s_data_len"])
     buffer_count = info["buffer_count"]
     raw_buffers = list(map(bytearray, info["raw_buffers_len"]))
+    if "s_data_len" in info and str(info["s_data_len"])=="8862124":
+        data =comm.recv(source_rank)
+        raise ValueError(data)
+    #     x = comm.recv(source=source_rank)
+    #     logger.warning("recv uid={}pppppppppppppppppppp00000{}".format(info["uuid"],x))
+        
     with pkl5._bigmpi as bigmpi:
         comm.Recv(bigmpi(msgpack_buffer), source=source_rank)
+        if flag:
+            logger.warning("recv uid={}+*&&7>>>>>>>>>>>>>>>>>>>>{}".format(info["uuid"],bigmpi(msgpack_buffer)))
         for rbuf in raw_buffers:
             comm.Recv(bigmpi(rbuf), source=source_rank)
-
-    # Set the necessary metadata for unpacking
+            if flag:
+                logger.warning("recv uid={}+*&&7>>>>>>>>>>>>>>>>>>>>{}".format(info["uuid"],bigmpi(rbuf)))
+    
+        # Set the necessary metadata for unpacking
     deserializer = ComplexDataSerializer(raw_buffers, buffer_count)
-
+    
     # Start unpacking
-    return deserializer.deserialize(msgpack_buffer)
+    try:
+        return deserializer.deserialize(msgpack_buffer)
+    except :
+        alogger.warning("1 {}".format(info))
+        for a in  msgpack_buffer:
+            alogger.warning("1 {}".format(a))
+        logger.warning("&&&&&&&&&&&from {} current {}".format(source_rank, MPIState.get_instance().rank))
+        comm.Recv(bigmpi(msgpack_buffer), source=source_rank)
+        blogger.warning("time before {}".format(time.time()))
+        time.sleep(60)
+        blogger.warning("time after {}".format(time.time()))
+        
+        
+        raise ValueError("info {} ".format(info))
+
 
 
 # ---------- #
@@ -661,7 +720,7 @@ def isend_complex_operation(
     handlers = []
     h1 = mpi_isend_object(comm, operation_type, dest_rank)
     handlers.append((h1, None))
-
+    
     # Send operation data
     if is_serialized:
         # Send already serialized data

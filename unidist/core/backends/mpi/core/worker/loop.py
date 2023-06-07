@@ -69,7 +69,7 @@ def async_wrap(func):
 # Worker event processing loop #
 # ---------------------------- #
 
-
+import time
 async def worker_loop():
     """
     Infinite operations processing loop.
@@ -178,7 +178,8 @@ async def worker_loop():
 
         elif operation_type == common.Operation.CANCEL:
             async_operations.finish()
-            w_logger.debug("Exit worker event loop")
+            
+            w_logger.debug("Exit worker event loop {}".format(time.time()))
             if not MPI.Is_finalized():
                 MPI.Finalize()
             break  # leave event loop and shutdown worker
