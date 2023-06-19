@@ -84,7 +84,10 @@ def get_op_name(op):
     KeyError
         If the operation does not match either of `operations_dict`.
     """
-    op_name = operations_dict.get(op, None)
+    try:
+        op_name = operations_dict.get(op, None)
+    except:
+        raise ValueError(op)
     if op_name is None:
         raise KeyError(f"Got unsupported operation `{op}`")
     return op_name
@@ -133,7 +136,7 @@ class MasterDataID(DataID):
         return DataID(self._id)
 
 
-def get_logger(logger_name, file_name, activate=False):
+def get_logger(logger_name, file_name, activate=True):
     """
     Configure logger and get it's instance.
 

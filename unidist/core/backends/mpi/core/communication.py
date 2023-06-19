@@ -196,7 +196,7 @@ def mpi_isend_object(comm, data, dest_rank):
     object
         A handler to MPI_Isend communication result.
     """
-    return comm.isend(data, dest=dest_rank)
+    return comm.issend(data, dest=dest_rank)
 
 
 def mpi_send_buffer(comm, buffer_size, buffer, dest_rank):
@@ -267,9 +267,9 @@ def mpi_isend_buffer(comm, buffer_size, buffer, dest_rank):
         A handler to MPI_Isend communication result.
     """
     requests = []
-    h1 = comm.isend(buffer_size, dest=dest_rank)
+    h1 = comm.issend(buffer_size, dest=dest_rank)
     requests.append((h1, None))
-    h2 = comm.Isend([buffer, MPI.CHAR], dest=dest_rank)
+    h2 = comm.Issend([buffer, MPI.CHAR], dest=dest_rank)
     requests.append((h2, buffer))
     return requests
 
@@ -437,14 +437,14 @@ def _isend_complex_data_impl(comm, s_data, raw_buffers, buffer_count, dest_rank)
         "raw_buffers_len": [len(sbuf) for sbuf in raw_buffers],
     }
 
-    h1 = comm.isend(info, dest=dest_rank)
+    h1 = comm.issend(info, dest=dest_rank)
     handlers.append((h1, None))
 
     with pkl5._bigmpi as bigmpi:
-        h2 = comm.Isend(bigmpi(s_data), dest=dest_rank)
+        h2 = comm.Issend(bigmpi(s_data), dest=dest_rank)
         handlers.append((h2, s_data))
         for sbuf in raw_buffers:
-            h_sbuf = comm.Isend(bigmpi(sbuf), dest=dest_rank)
+            h_sbuf = comm.Issend(bigmpi(sbuf), dest=dest_rank)
             handlers.append((h_sbuf, sbuf))
 
     return handlers
