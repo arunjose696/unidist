@@ -249,10 +249,10 @@ def push_data(dest_rank, value):
     value : iterable or dict or object
         Arguments to be sent.
     """
-    if isinstance(value, (list, tuple)):
+    if type(value) in (list, tuple):
         for v in value:
             push_data(dest_rank, v)
-    elif isinstance(value, dict):
+    elif type(value) in (dict,):
         for v in value.values():
             push_data(dest_rank, v)
     elif is_data_id(value):

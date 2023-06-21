@@ -265,6 +265,8 @@ def shutdown():
     global is_mpi_shutdown
     if not is_mpi_shutdown:
         mpi_state = communication.MPIState.get_instance()
+        async_operations = AsyncOperations.get_instance()
+        async_operations.finish()
         # Send shutdown commands to all ranks
         for rank_id in range(communication.MPIRank.MONITOR, mpi_state.world_size):
             # We use a blocking send here because we have to wait for
@@ -273,8 +275,6 @@ def shutdown():
                 mpi_state.comm, common.Operation.CANCEL, rank_id
             )
             logger.debug("Shutdown rank {}".format(rank_id))
-        async_operations = AsyncOperations.get_instance()
-        async_operations.finish()
         if not MPI.Is_finalized():
             MPI.Finalize()
         is_mpi_shutdown = True

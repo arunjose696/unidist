@@ -196,7 +196,7 @@ def mpi_isend_object(comm, data, dest_rank):
     object
         A handler to MPI_Isend communication result.
     """
-    return comm.isend(data, dest=dest_rank)
+    return comm.issend(data, dest=dest_rank)
 
 
 def mpi_send_buffer(comm, buffer_size, buffer, dest_rank):
@@ -240,9 +240,9 @@ def mpi_recv_buffer(comm, source_rank):
     object
         Array buffer or serialized object.
     """
-    buf_size = comm.recv(source=source_rank)
+    buf_size = comm.irecv(source=source_rank)
     s_buffer = bytearray(buf_size)
-    comm.Recv([s_buffer, MPI.CHAR], source=source_rank)
+    comm.Irecv([s_buffer, MPI.CHAR], source=source_rank)
     return s_buffer
 
 
@@ -267,9 +267,9 @@ def mpi_isend_buffer(comm, buffer_size, buffer, dest_rank):
         A handler to MPI_Isend communication result.
     """
     requests = []
-    h1 = comm.isend(buffer_size, dest=dest_rank)
+    h1 = comm.issend(buffer_size, dest=dest_rank)
     requests.append((h1, None))
-    h2 = comm.Isend([buffer, MPI.CHAR], dest=dest_rank)
+    h2 = comm.Issend([buffer, MPI.CHAR], dest=dest_rank)
     requests.append((h2, buffer))
     return requests
 
@@ -437,14 +437,14 @@ def _isend_complex_data_impl(comm, s_data, raw_buffers, buffer_count, dest_rank)
         "raw_buffers_len": [len(sbuf) for sbuf in raw_buffers],
     }
 
-    h1 = comm.isend(info, dest=dest_rank)
+    h1 = comm.issend(info, dest=dest_rank)
     handlers.append((h1, None))
 
     with pkl5._bigmpi as bigmpi:
-        h2 = comm.Isend(bigmpi(s_data), dest=dest_rank)
+        h2 = comm.Issend(bigmpi(s_data), dest=dest_rank)
         handlers.append((h2, s_data))
         for sbuf in raw_buffers:
-            h_sbuf = comm.Isend(bigmpi(sbuf), dest=dest_rank)
+            h_sbuf = comm.Issend(bigmpi(sbuf), dest=dest_rank)
             handlers.append((h_sbuf, sbuf))
 
     return handlers
@@ -515,15 +515,15 @@ def recv_complex_data(comm, source_rank):
     # First MPI call uses busy wait loop to remove possible contention
     # in a long running data receive operations.
 
-    info = comm.recv(source=source_rank)
+    info = comm.irecv(source=source_rank)
 
     msgpack_buffer = bytearray(info["s_data_len"])
     buffer_count = info["buffer_count"]
     raw_buffers = list(map(bytearray, info["raw_buffers_len"]))
     with pkl5._bigmpi as bigmpi:
-        comm.Recv(bigmpi(msgpack_buffer), source=source_rank)
+        comm.Irecv(bigmpi(msgpack_buffer), source=source_rank)
         for rbuf in raw_buffers:
-            comm.Recv(bigmpi(rbuf), source=source_rank)
+            comm.Irecv(bigmpi(rbuf), source=source_rank)
 
     # Set the necessary metadata for unpacking
     deserializer = ComplexDataSerializer(raw_buffers, buffer_count)
@@ -619,7 +619,7 @@ def recv_simple_operation(comm, source_rank):
     -----
     De-serialization is a simple pickle.load in this case
     """
-    return comm.recv(source=source_rank)
+    return comm.irecv(source=source_rank)
 
 
 def isend_complex_operation(

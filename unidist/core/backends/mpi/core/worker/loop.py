@@ -129,7 +129,11 @@ async def worker_loop():
 
         elif operation_type == common.Operation.PUT_OWNER:
             request = communication.recv_simple_operation(mpi_state.comm, source_rank)
-            request["id"] = object_store.get_unique_data_id(request["id"])
+            
+            try:
+                request["id"] = object_store.get_unique_data_id(request["id"])
+            except:
+                raise ValueError(request)
             object_store.put_data_owner(request["id"], request["owner"])
 
             w_logger.debug(
@@ -178,6 +182,7 @@ async def worker_loop():
 
         elif operation_type == common.Operation.CANCEL:
             async_operations.finish()
+            # mpi_state.comm.Barrier()
             w_logger.debug("Exit worker event loop")
             if not MPI.Is_finalized():
                 MPI.Finalize()
