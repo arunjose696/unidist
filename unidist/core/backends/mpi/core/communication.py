@@ -156,7 +156,7 @@ def get_topology():
 # ---------------------------- #
 
 
-def mpi_send_object(comm, data, dest_rank):
+def mpi_send_object(comm, data, dest_rank, tag=0):
     """
     Send Python object to another MPI rank in a blocking way.
 
@@ -175,7 +175,7 @@ def mpi_send_object(comm, data, dest_rank):
     which is necessary for the pipeline to continue, or when the receiver is waiting for a result.
     Otherwise, use non-blocking ``mpi_isend_object``.
     """
-    comm.send(data, dest=dest_rank)
+    comm.send(data, dest=dest_rank,tag=tag)
 
 
 def mpi_isend_object(comm, data, dest_rank):
@@ -240,9 +240,9 @@ def mpi_recv_buffer(comm, source_rank):
     object
         Array buffer or serialized object.
     """
-    buf_size = comm.irecv(source=source_rank)
+    buf_size = comm.recv(source=source_rank)
     s_buffer = bytearray(buf_size)
-    comm.Irecv([s_buffer, MPI.CHAR], source=source_rank)
+    comm.Recv([s_buffer, MPI.CHAR], source=source_rank)
     return s_buffer
 
 
@@ -286,7 +286,7 @@ def mpi_busy_wait_recv(comm, source_rank):
         Source MPI process to receive data.
     """
     backoff = MpiBackoff.get()
-    req_handle = comm.irecv(source=source_rank)
+    req_handle = comm.recv(source=source_rank)
     while True:
         status, data = req_handle.test()
         if status:
@@ -515,15 +515,15 @@ def recv_complex_data(comm, source_rank):
     # First MPI call uses busy wait loop to remove possible contention
     # in a long running data receive operations.
 
-    info = comm.irecv(source=source_rank)
+    info = comm.recv(source=source_rank)
 
     msgpack_buffer = bytearray(info["s_data_len"])
     buffer_count = info["buffer_count"]
     raw_buffers = list(map(bytearray, info["raw_buffers_len"]))
     with pkl5._bigmpi as bigmpi:
-        comm.Irecv(bigmpi(msgpack_buffer), source=source_rank)
+        comm.Recv(bigmpi(msgpack_buffer), source=source_rank)
         for rbuf in raw_buffers:
-            comm.Irecv(bigmpi(rbuf), source=source_rank)
+            comm.Recv(bigmpi(rbuf), source=source_rank)
 
     # Set the necessary metadata for unpacking
     deserializer = ComplexDataSerializer(raw_buffers, buffer_count)
@@ -619,7 +619,7 @@ def recv_simple_operation(comm, source_rank):
     -----
     De-serialization is a simple pickle.load in this case
     """
-    return comm.irecv(source=source_rank)
+    return comm.recv(source=source_rank)
 
 
 def isend_complex_operation(

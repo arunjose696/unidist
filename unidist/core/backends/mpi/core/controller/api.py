@@ -272,7 +272,7 @@ def shutdown():
             # We use a blocking send here because we have to wait for
             # completion of the communication, which is necessary for the pipeline to continue.
             communication.mpi_send_object(
-                mpi_state.comm, common.Operation.CANCEL, rank_id
+                mpi_state.comm, common.Operation.CANCEL, rank_id, tag=2
             )
             logger.debug("Shutdown rank {}".format(rank_id))
         if not MPI.Is_finalized():

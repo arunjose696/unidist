@@ -94,6 +94,14 @@ async def worker_loop():
 
         # Proceed the request
         if operation_type == common.Operation.EXECUTE:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
+                
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
 
             # Execute the task if possible
@@ -105,6 +113,13 @@ async def worker_loop():
                 task_store.check_pending_tasks()
 
         elif operation_type == common.Operation.GET:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             request = communication.recv_simple_operation(mpi_state.comm, source_rank)
             request["id"] = object_store.get_unique_data_id(request["id"])
             request_store.process_get_request(
@@ -112,6 +127,13 @@ async def worker_loop():
             )
 
         elif operation_type == common.Operation.PUT_DATA:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
             w_logger.debug(
                 "PUT (RECV) {} id from {} rank".format(request["id"]._id, source_rank)
@@ -128,6 +150,13 @@ async def worker_loop():
             task_store.check_pending_actor_tasks()
 
         elif operation_type == common.Operation.PUT_OWNER:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             request = communication.recv_simple_operation(mpi_state.comm, source_rank)
             
             try:
@@ -143,12 +172,26 @@ async def worker_loop():
             )
 
         elif operation_type == common.Operation.WAIT:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             request = communication.recv_simple_operation(mpi_state.comm, source_rank)
             w_logger.debug("WAIT for {} id".format(request["id"]._id))
             request["id"] = object_store.get_unique_data_id(request["id"])
             request_store.process_wait_request(request["id"])
 
         elif operation_type == common.Operation.ACTOR_CREATE:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
             cls = request["class"]
             args = request["args"]
@@ -158,12 +201,19 @@ async def worker_loop():
             actor_map[handler] = cls(*args, **kwargs)
 
         elif operation_type == common.Operation.ACTOR_EXECUTE:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
 
             # Prepare the data
             method_name = request["task"]
             handler = request["handler"]
-            actor_method = getattr(actor_map[handler], method_name)
+            actor_method = getattr(actor_maIprobep[handler], method_name)
             request["task"] = actor_method
 
             # Execute the actor task if possible
@@ -175,6 +225,13 @@ async def worker_loop():
                 task_store.check_pending_actor_tasks()
 
         elif operation_type == common.Operation.CLEANUP:
+            if mpi_state.comm.Iprobe(source=0, tag=2):
+                async_operations.finish()
+                 # mpi_state.comm.Barrier()
+                w_logger.debug("Exit worker event loop")
+                if not MPI.Is_finalized():
+                    MPI.Finalize()
+                break  # leave event loop and shutdown worker
             cleanup_list = communication.recv_serialized_data(
                 mpi_state.comm, source_rank
             )
