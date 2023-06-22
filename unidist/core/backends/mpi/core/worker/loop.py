@@ -85,6 +85,7 @@ async def worker_loop():
     object_store = ObjectStore.get_instance()
     request_store = RequestStore.get_instance()
     async_operations = AsyncOperations.get_instance()
+    shutdown_posted = False
     while True:
         # Listen receive operation from any source
         operation_type, source_rank = await async_wrap(
@@ -93,7 +94,7 @@ async def worker_loop():
         w_logger.debug("common.Operation processing - {}".format(operation_type))
 
         # Proceed the request
-        if operation_type == common.Operation.EXECUTE:
+        if operation_type == common.Operation.EXECUTE and not shutdown_posted:
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
 
             # Execute the task if possible
@@ -105,7 +106,7 @@ async def worker_loop():
                 task_store.check_pending_tasks()
 
         elif operation_type == common.Operation.GET:
-            request = communication.recv_simple_operation(mpi_state.comm, source_rank)
+            request = communication.mpi_recv_object(mpi_state.comm, source_rank)
             request["id"] = object_store.get_unique_data_id(request["id"])
             request_store.process_get_request(
                 request["source"], request["id"], request["is_blocking_op"]
@@ -127,8 +128,8 @@ async def worker_loop():
             # Check pending actor requests also.
             task_store.check_pending_actor_tasks()
 
-        elif operation_type == common.Operation.PUT_OWNER:
-            request = communication.recv_simple_operation(mpi_state.comm, source_rank)
+        elif operation_type == common.Operation.PUT_OWNER and not shutdown_posted:
+            request = communication.mpi_recv_object(mpi_state.comm, source_rank)
             request["id"] = object_store.get_unique_data_id(request["id"])
             object_store.put_data_owner(request["id"], request["owner"])
 
@@ -138,13 +139,13 @@ async def worker_loop():
                 )
             )
 
-        elif operation_type == common.Operation.WAIT:
-            request = communication.recv_simple_operation(mpi_state.comm, source_rank)
+        elif operation_type == common.Operation.WAIT and not shutdown_posted:
+            request = communication.mpi_recv_object(mpi_state.comm, source_rank)
             w_logger.debug("WAIT for {} id".format(request["id"]._id))
             request["id"] = object_store.get_unique_data_id(request["id"])
             request_store.process_wait_request(request["id"])
 
-        elif operation_type == common.Operation.ACTOR_CREATE:
+        elif operation_type == common.Operation.ACTOR_CREATE and not shutdown_posted:
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
             cls = request["class"]
             args = request["args"]
@@ -153,7 +154,7 @@ async def worker_loop():
 
             actor_map[handler] = cls(*args, **kwargs)
 
-        elif operation_type == common.Operation.ACTOR_EXECUTE:
+        elif operation_type == common.Operation.ACTOR_EXECUTE and not shutdown_posted:
             request = communication.recv_complex_data(mpi_state.comm, source_rank)
 
             # Prepare the data
@@ -170,20 +171,41 @@ async def worker_loop():
                 # Check pending requests. Maybe some data became available.
                 task_store.check_pending_actor_tasks()
 
-        elif operation_type == common.Operation.CLEANUP:
+        elif operation_type == common.Operation.CLEANUP and not shutdown_posted:
             cleanup_list = communication.recv_serialized_data(
                 mpi_state.comm, source_rank
             )
             object_store.clear(cleanup_list)
 
-        elif operation_type == common.Operation.CANCEL:
+        elif operation_type == common.Operation.CANCEL and not shutdown_posted:
             async_operations.finish()
+            task_store.clear_pending_tasks()
+            task_store.clear_pending_actor_tasks()
+            request_store.clear_data_requests()
+            request_store.clear_get_requests()
+            request_store.clear_wait_requests()
+            communication.mpi_send_object(
+                mpi_state.comm,
+                common.Operation.READY_TO_SHUTDOWN,
+                communication.MPIRank.MONITOR,
+                tag=common.MPITag.OPERATION,
+            )
+            shutdown_posted = True
+        elif operation_type == common.Operation.SHUTDOWN and shutdown_posted:
             w_logger.debug("Exit worker event loop")
             if not MPI.Is_finalized():
                 MPI.Finalize()
             break  # leave event loop and shutdown worker
+        elif (
+            operation_type
+            in list(range(common.Operation.EXECUTE, common.Operation.SHUTDOWN + 1))
+            and shutdown_posted
+        ):
+            pass
         else:
+            w_logger.debug(f"Unsupported operation {operation_type}")
             raise ValueError("Unsupported operation!")
 
-        # Check completion status of previous async MPI routines
-        async_operations.check()
+        if not shutdown_posted:
+            # Check completion status of previous async MPI routines
+            async_operations.check()

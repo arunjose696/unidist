@@ -71,7 +71,7 @@ class GarbageCollector:
                     s_cleanup_list,
                     rank_id,
                 )
-                async_operations.extend(h_list)
+                async_operations.append(h_list)
 
     def increment_task_counter(self):
         """
@@ -126,8 +126,9 @@ class GarbageCollector:
                         mpi_state.comm,
                         common.Operation.GET_TASK_COUNT,
                         communication.MPIRank.MONITOR,
+                        tag=common.MPITag.OPERATION,
                     )
-                    executed_task_counter = communication.recv_simple_operation(
+                    executed_task_counter = communication.mpi_recv_object(
                         mpi_state.comm,
                         communication.MPIRank.MONITOR,
                     )

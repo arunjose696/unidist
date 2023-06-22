@@ -204,7 +204,7 @@ def _push_local_data(dest_rank, data_id):
                 is_serialized=False,
             )
             object_store.cache_serialized_data(data_id, serialized_data)
-        async_operations.extend(h_list)
+        async_operations.append(h_list)
         #  Remember pushed id
         object_store.cache_send_info(data_id, dest_rank)
 
@@ -232,7 +232,7 @@ def _push_data_owner(dest_rank, data_id):
         operation_data,
         dest_rank,
     )
-    async_operations.extend(h_list)
+    async_operations.append(h_list)
 
 
 def push_data(dest_rank, value):

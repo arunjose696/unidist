@@ -58,7 +58,7 @@ class ActorMethod:
             operation_data,
             self._actor._owner_rank,
         )
-        async_operations.extend(h_list)
+        async_operations.append(h_list)
         return output_id
 
 
@@ -121,7 +121,7 @@ class Actor:
                 operation_data,
                 self._owner_rank,
             )
-            async_operations.extend(h_list)
+            async_operations.append(h_list)
 
     def _serialization_helper(self):
         """
