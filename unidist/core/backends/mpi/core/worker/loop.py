@@ -178,12 +178,12 @@ async def worker_loop():
             object_store.clear(cleanup_list)
 
         elif operation_type == common.Operation.CANCEL and not shutdown_posted:
-            async_operations.finish()
-            task_store.clear_pending_tasks()
-            task_store.clear_pending_actor_tasks()
-            request_store.clear_data_requests()
-            request_store.clear_get_requests()
-            request_store.clear_wait_requests()
+            
+            # task_store.clear_pending_tasks()
+            # task_store.clear_pending_actor_tasks()
+            # request_store.clear_data_requests()
+            # request_store.clear_get_requests()
+            # request_store.clear_wait_requests()
             communication.mpi_send_object(
                 mpi_state.comm,
                 common.Operation.READY_TO_SHUTDOWN,
@@ -193,6 +193,7 @@ async def worker_loop():
             shutdown_posted = True
         elif operation_type == common.Operation.SHUTDOWN and shutdown_posted:
             w_logger.debug("Exit worker event loop")
+            async_operations.finish()
             if not MPI.Is_finalized():
                 MPI.Finalize()
             break  # leave event loop and shutdown worker
