@@ -75,10 +75,15 @@ class AsyncOperations:
     def finish(self):
         """Cancel all MPI async send requests, which have not been initiated yet."""
         # We iterate inversely to allow initial sends to complete.
+        handlers_to_wait = []
         for handler_list in self._send_async_handlers[::-1]:
             tests = [h.Test() for h, _ in handler_list]
             cancel = all(not test for test in tests)
             if cancel:
-                _ = [h.Cancel() for h, _ in handler_list]
-                MPI.Request.Waitall([h for h, _ in handler_list])
+                _ = [h.Cancel() for h, _ in handler_list]   
+                MPI.Request.Waitall([h for h, _ in handler_list])             
+            else:
+                
+                handlers_to_wait.extend([h for h, _ in handler_list])
+        MPI.Request.Waitall(handlers_to_wait)       
         self._send_async_handlers.clear()

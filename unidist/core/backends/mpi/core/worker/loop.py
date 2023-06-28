@@ -179,11 +179,11 @@ async def worker_loop():
 
         elif operation_type == common.Operation.CANCEL and not shutdown_posted:
             
-            # task_store.clear_pending_tasks()
-            # task_store.clear_pending_actor_tasks()
-            # request_store.clear_data_requests()
-            # request_store.clear_get_requests()
-            # request_store.clear_wait_requests()
+            task_store.clear_pending_tasks()
+            task_store.clear_pending_actor_tasks()
+            request_store.clear_data_requests()
+            request_store.clear_get_requests()
+            request_store.clear_wait_requests()
             communication.mpi_send_object(
                 mpi_state.comm,
                 common.Operation.READY_TO_SHUTDOWN,
