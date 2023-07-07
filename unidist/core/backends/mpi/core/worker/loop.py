@@ -221,8 +221,8 @@ async def worker_loop():
                 common.Operation.READY_TO_SHUTDOWN,
                 communication.MPIRank.MONITOR,
             )
-            ready_to_shutdown_posted = True
-        elif operation_type == common.Operation.SHUTDOWN and ready_to_shutdown_posted:
+            #ready_to_shutdown_posted = True
+        elif operation_type == common.Operation.SHUTDOWN :
             async_operations.finish()
             w_logger.debug("Exit worker event loop")
             if not MPI.Is_finalized():

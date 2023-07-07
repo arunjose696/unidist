@@ -435,10 +435,15 @@ def mpi_busy_wait_recv(comm, source_rank):
     The special tag is used for this communication, namely, ``common.MPITag.OBJECT``.
     """
     backoff = MpiBackoff.get()
+    status1 = MPI.Status()
     req_handle = comm.irecv(source=source_rank, tag=common.MPITag.OBJECT)
     while True:
-        status, data = req_handle.test()
-        if status:
+        
+        
+        status2, data = req_handle.test()
+        # req_handle.wait(status=status1)
+        if status2:
+            logger.debug(f"status1={status1.Get_source()} status2= {status2} source_rank= {source_rank} ")
             return data
         else:
             time.sleep(backoff)
@@ -662,12 +667,14 @@ def recv_complex_data(comm, source_rank, cancel_recv=False):
     # in a long running data receive operations.
     backoff = MpiBackoff.get()
     status = MPI.Status()
+    # if cancel_recv:
+    #     return None
     info = mpi_busy_wait_recv(comm, source_rank)
     logger.debug(f"info is {info}")
     try:
         msgpack_buffer = bytearray(info["s_data_len"])
     except:
-        raise ValueError("info is {info}")
+        raise ValueError(f"info is {info} source_rank={source_rank} current={MPIState.get_instance().rank}")
     buffer_count = info["buffer_count"]
     raw_buffers = list(map(bytearray, info["raw_buffers_len"]))
     cancelled_requests = []
