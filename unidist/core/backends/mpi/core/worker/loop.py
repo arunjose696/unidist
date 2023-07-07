@@ -128,6 +128,7 @@ async def worker_loop():
                 )
 
         elif operation_type == common.Operation.PUT_DATA:
+            w_logger.debug(f"current = {mpi_state.get_instance().rank}  from ={source_rank}")
             request = communication.recv_complex_data(
                 mpi_state.comm,
                 source_rank,
