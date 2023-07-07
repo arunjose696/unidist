@@ -663,7 +663,11 @@ def recv_complex_data(comm, source_rank, cancel_recv=False):
     backoff = MpiBackoff.get()
     status = MPI.Status()
     info = mpi_busy_wait_recv(comm, source_rank)
-    msgpack_buffer = bytearray(info["s_data_len"])
+    logger.debug(f"info is {info}")
+    try:
+        msgpack_buffer = bytearray(info["s_data_len"])
+    except:
+        raise ValueError("info is {info}")
     buffer_count = info["buffer_count"]
     raw_buffers = list(map(bytearray, info["raw_buffers_len"]))
     cancelled_requests = []
