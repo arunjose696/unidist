@@ -6,7 +6,7 @@
 import asyncio
 from functools import wraps, partial
 
-from unidist.core.backends.mpi.core.controller.common import get_data
+from unidist.core.backends.mpi.core.controller.common import get_data,Scheduler
 from unidist.core.backends.mpi.core.shared_store import SharedStore
 
 try:
@@ -84,6 +84,7 @@ async def worker_loop():
     The loop exits on special cancelation operation.
     ``unidist.core.backends.mpi.core.common.Operations`` defines a set of supported operations.
     """
+    scheduler = Scheduler.get_instance()
     task_store = TaskStore.get_instance()
     object_store = ObjectStore.get_instance()
     request_store = RequestStore.get_instance()

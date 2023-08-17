@@ -27,6 +27,7 @@ from unidist.core.backends.mpi.core.controller.common import (
     request_worker_data,
     push_data,
     RoundRobin,
+    Scheduler,
 )
 import unidist.core.backends.mpi.core.common as common
 import unidist.core.backends.mpi.core.communication as communication
@@ -508,9 +509,9 @@ def submit(task, *args, num_returns=1, **kwargs):
     # Initiate reference count based cleanup
     # if all the tasks were completed
     garbage_collector.regular_cleanup()
-
-    dest_rank = RoundRobin.get_instance().schedule_rank()
-
+    
+    dest_rank = Scheduler.get_instance().schedule_rank()
+    
     object_store = ObjectStore.get_instance()
     output_ids = object_store.generate_output_data_id(
         dest_rank, garbage_collector, num_returns

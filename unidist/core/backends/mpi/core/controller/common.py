@@ -11,8 +11,150 @@ import unidist.core.backends.mpi.core.communication as communication
 from unidist.core.backends.mpi.core.async_operations import AsyncOperations
 from unidist.core.backends.mpi.core.object_store import ObjectStore
 from unidist.core.backends.mpi.core.shared_store import SharedStore
-
+from mpi4py import MPI
+from array import array
 logger = common.get_logger("common", "common.log")
+
+class Scheduler:
+    __instance = None
+
+    def __init__(self):
+        mpi_state = communication.MPIState.get_instance()
+        self.reserved_ranks = []
+        info = MPI.Info.Create()
+        info.Set("alloc_shared_noncontig", "true")
+        self.service_info_max_count = mpi_state.world_size
+        self.win_service = MPI.Win.Allocate_shared(
+            self.service_info_max_count * MPI.LONG.size
+            if mpi_state.is_monitor_process()
+            else 0,
+            MPI.LONG.size,
+            comm=mpi_state.host_comm,
+            info=info,
+        )
+        tasks_buffer, _ = self.win_service.Shared_query(communication.MPIRank.MONITOR)
+        self.tasks_buffer = memoryview(tasks_buffer).cast("l")
+        if mpi_state.is_monitor_process():
+            self.tasks_buffer[:] = array("l", [-1] * len(self.tasks_buffer))
+        
+
+        self.rank_to_schedule = [
+            rank
+            for rank in range(
+                communication.MPIRank.FIRST_WORKER,
+                communication.MPIState.get_instance().world_size,
+            )
+            # check if a rank to schedule is not equal to the rank
+            # of the current process to not get into recursive scheduling
+            if rank != communication.MPIState.get_instance().rank
+        ]
+        logger.debug(
+            f"Scheduler init for {communication.MPIState.get_instance().rank} rank"
+        )
+
+    @classmethod
+    def get_instance(cls):
+        """
+        Get instance of ``Scheduler``.
+
+        Returns
+        -------
+        Scheduler
+        """
+        if cls.__instance is None:
+            cls.__instance = Scheduler()
+        return cls.__instance
+
+    def schedule_rank(self):
+        """
+        Find the next non-reserved rank for task/actor-task execution.
+
+        Returns
+        -------
+        int
+            A rank number.
+        """
+        for i in range(communication.MPIState.get_instance().world_size):
+            logger.debug(f"before scheduling, the values are {self.tasks_buffer[i]}")
+        next_rank = min(
+            self.rank_to_schedule, key=self.tasks_buffer.__getitem__, default=None
+        )
+        
+        if next_rank is None:
+            raise Exception("All ranks blocked")
+        self.increment_tasks_on_worker(next_rank)
+        for i in range(communication.MPIState.get_instance().world_size):
+            logger.debug(f"after scheduling, the values are {self.tasks_buffer.__getitem__(i)}")
+        return next_rank
+
+    def reserve_rank(self, rank):
+        """
+        Reserve the rank for the actor scheduling.
+
+        This makes the rank unavailable for scheduling a new actor or task
+        until it gets released.
+
+        Parameters
+        ----------
+        rank : int
+            A rank number.
+        """
+        if rank in self.rank_to_schedule:
+            self.rank_to_schedule.remove(rank)
+        self.reserved_ranks.append(rank)
+        logger.debug(
+            f"Scheduler reserve rank {rank} for actor "
+            + f"on worker with rank {communication.MPIState.get_instance().rank}"
+        )
+
+    def release_rank(self, rank):
+        """
+        Release the rank reserved for the actor.
+
+        This makes the rank available for scheduling a new actor or task.
+
+        Parameters
+        ----------
+        rank : int
+            A rank number.
+        """
+
+        self.reserved_ranks.remove(rank)
+        self.rank_to_schedule.append(rank)
+        logger.debug(
+            f"Scheduler release rank {rank} reserved for actor "
+            + f"on worker with rank {communication.MPIState.get_instance().rank}"
+        )
+
+    def increment_tasks_on_worker(self, rank):
+        """
+        Increments the count of tasks submitted to a worker.
+
+        This helps to track tasks submitted per workers
+
+        Parameters
+        ----------
+        rank : int
+            A rank number.
+        """
+        self.tasks_buffer[rank] += 1
+        
+
+    def decrement_tasks_on_worker(self, rank):
+        """
+        Decrement the count of tasks submitted to a worker.
+
+        This helps to track tasks submitted per workers
+
+        Parameters
+        ----------
+        rank : int
+            A rank number.
+        """
+        self.tasks_buffer[rank] -= 1
+
+    
+
 
 
 class RoundRobin:

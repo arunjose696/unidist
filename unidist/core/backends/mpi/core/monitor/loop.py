@@ -16,6 +16,7 @@ import unidist.core.backends.mpi.core.communication as communication
 from unidist.core.backends.mpi.core.monitor.shared_memory_manager import (
     SharedMemoryMahager,
 )
+from unidist.core.backends.mpi.core.controller.common import Scheduler
 from unidist.core.backends.mpi.core.shared_store import SharedStore
 
 # TODO: Find a way to move this after all imports
@@ -175,7 +176,7 @@ def monitor_loop():
     wait_handler = WaitHandler.get_instance()
     data_id_tracker = DataIDTracker.get_instance()
     shared_store = SharedStore.get_instance()
-
+    scheduler = Scheduler.get_instance()
     workers_ready_to_shutdown = []
     shutdown_workers = False
     # Once all workers excluding ``Root`` and ``Monitor`` ranks are ready to shutdown,

@@ -10,13 +10,14 @@ import weakref
 
 from unidist.core.backends.common.data_id import is_data_id
 import unidist.core.backends.mpi.core.common as common
+
 import unidist.core.backends.mpi.core.communication as communication
 from unidist.core.backends.mpi.core.async_operations import AsyncOperations
 from unidist.core.backends.mpi.core.object_store import ObjectStore
 from unidist.core.backends.mpi.core.shared_store import SharedStore
 from unidist.core.backends.mpi.core.worker.request_store import RequestStore
 from unidist.core.backends.mpi.utils import check_data_out_of_band
-
+from unidist.core.backends.mpi.core.controller.common import Scheduler
 mpi_state = communication.MPIState.get_instance()
 # Logger configuration
 # When building documentation we do not have MPI initialized so
@@ -275,6 +276,7 @@ class TaskStore:
         -----
         Exceptions are stored in output data IDs as value.
         """
+        scheduler = Scheduler.get_instance()
         object_store = ObjectStore.get_instance()
         completed_data_ids = []
         if inspect.iscoroutinefunction(task):
@@ -300,7 +302,7 @@ class TaskStore:
                         "Task evaluation time: {}".format(time.perf_counter() - start)
                     )
                     w_logger.debug("- End task execution -")
-
+                    scheduler.decrement_tasks_on_worker(mpi_state.rank)
                 except Exception as e:
                     w_logger.debug("Exception - {}".format(e))
 
@@ -369,7 +371,7 @@ class TaskStore:
                     "Task evaluation time: {}".format(time.perf_counter() - start)
                 )
                 w_logger.debug("- End task execution -")
-
+                scheduler.decrement_tasks_on_worker(mpi_state.rank)
             except Exception as e:
                 w_logger.debug("Exception - {}".format(e))
 
