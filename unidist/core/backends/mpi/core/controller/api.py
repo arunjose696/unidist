@@ -228,7 +228,7 @@ def init():
                 info.Set("add-host", hosts)
             else:
                 info.Set("hosts", hosts)
-
+        print("*****************1111111111*******************")
         intercomm = MPI.COMM_SELF.Spawn(
             sys.executable,
             args,
@@ -236,6 +236,7 @@ def init():
             info=info,
             root=rank,
         )
+        print("*****************22222222222222*******************")
         comm = intercomm.Merge(high=False)
     else:
         if runtime_env and rank != 0:
