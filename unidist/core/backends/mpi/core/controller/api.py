@@ -236,6 +236,7 @@ def init():
             info=info,
             root=rank,
         )
+        print(f"args ={args},nprocs_to_spawn={nprocs_to_spawn}, info={info},rank={rank}")
         print("*****************222222221222222*******************")
         comm = intercomm.Merge(high=False)
         print("*****************33333333333333*******************")
