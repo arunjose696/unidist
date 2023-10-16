@@ -225,9 +225,16 @@ def init():
                 hosts = ",".join(
                     [f"{host_list[i]}:{slots_per_host[i]}" for i in range(host_count)]
                 )
+                
                 info.Set("add-host", hosts)
             else:
                 info.Set("hosts", hosts)
+        else:
+            hosts = ",".join(
+                [f"{host_list[0]}:{nprocs_to_spawn}" ]
+            )
+            info.Set("add-host", hosts)
+        print(f"hosts = {hosts}")
         print("*****************1111111111*******************")
         intercomm = MPI.COMM_SELF.Spawn(
             sys.executable,
