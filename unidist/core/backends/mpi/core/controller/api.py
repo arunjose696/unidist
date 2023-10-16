@@ -238,6 +238,7 @@ def init():
         )
         print("*****************22222222222222*******************")
         comm = intercomm.Merge(high=False)
+        print("*****************33333333333333*******************")
     else:
         if runtime_env and rank != 0:
             for option, value in runtime_env.items():
