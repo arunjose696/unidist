@@ -236,6 +236,9 @@ def init():
             info.Set("add-host", hosts)
         print(f"hosts = {hosts}")
         print("*****************1111111111*******************")
+        import os 
+        cpuCount = os.cpu_count() 
+        print(cpuCount)
         intercomm = MPI.COMM_SELF.Spawn(
             sys.executable,
             args,
