@@ -295,6 +295,7 @@ def init():
         if not IsMpiSpawnWorkers.get():
             sys.exit()
         return
+    print("44444444444444444444444444444")
 
 
 def is_initialized():
@@ -319,6 +320,7 @@ def shutdown():
     -----
     Sends cancelation operation to all workers and monitor processes.
     """
+    print("555555555555555555555555")
     global is_mpi_shutdown
     if not is_mpi_shutdown:
         async_operations = AsyncOperations.get_instance()
@@ -347,6 +349,7 @@ def shutdown():
 
         logger.debug("Shutdown root")
         is_mpi_shutdown = True
+    print("66666666666666666666666")
 
 
 def cluster_resources():
