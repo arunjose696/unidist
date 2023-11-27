@@ -17,35 +17,43 @@ from unidist.core.backends.mpi.core.serialization import serialize_complex_data
 
 logger = common.get_logger("common", "common.log")
 
-
-class RoundRobin:
+initial_worker_number = 2
+class Scheduler:
     __instance = None
 
     def __init__(self):
         self.reserved_ranks = []
         mpi_state = communication.MPIState.get_instance()
-        self.rank_to_schedule = itertools.cycle(
-            (
-                global_rank
-                for global_rank in mpi_state.workers
-                # check if a rank to schedule is not equal to the rank
-                # of the current process to not get into recursive scheduling
-                if global_rank != mpi_state.global_rank
+        self.task_per_worker = {
+            k: 0
+            for k in range(
+                initial_worker_number, communication.MPIState.get_instance().global_size
+                    )
+        }
+
+        self.rank_to_schedule = [
+            rank
+            for rank in range(
+                initial_worker_number,
+                communication.MPIState.get_instance().global_size,
             )
-        )
-        logger.debug(f"RoundRobin init for {mpi_state.global_rank} rank")
+            # check if a rank to schedule is not equal to the rank
+            # of the current process to not get into recursive scheduling
+            if rank != communication.MPIState.get_instance().global_rank
+        ]
+        logger.debug(f"Scheduler init for {mpi_state.global_rank} rank")
 
     @classmethod
     def get_instance(cls):
         """
-        Get instance of ``RoundRobin``.
+        Get instance of ``Scheduler``.
 
         Returns
         -------
-        RoundRobin
+        Scheduler
         """
         if cls.__instance is None:
-            cls.__instance = RoundRobin()
+            cls.__instance = Scheduler()
         return cls.__instance
 
     def schedule_rank(self):
@@ -57,15 +65,9 @@ class RoundRobin:
         int
             A rank number.
         """
-        next_rank = None
-        mpi_state = communication.MPIState.get_instance()
-
-        # Go rank by rank to find the first one non-reserved
-        for _ in mpi_state.workers:
-            rank = next(self.rank_to_schedule)
-            if rank not in self.reserved_ranks:
-                next_rank = rank
-                break
+        next_rank = min(
+            self.rank_to_schedule, key=self.task_per_worker.get, default=None
+        )
 
         if next_rank is None:
             raise Exception("All ranks blocked")
@@ -84,9 +86,11 @@ class RoundRobin:
         rank : int
             A rank number.
         """
+        if rank in self.rank_to_schedule:
+            self.rank_to_schedule.remove(rank)
         self.reserved_ranks.append(rank)
         logger.debug(
-            f"RoundRobin reserve rank {rank} for actor "
+            f"Scheduler reserve rank {rank} for actor "
             + f"on worker with rank {communication.MPIState.get_instance().global_rank}"
         )
 
@@ -102,10 +106,39 @@ class RoundRobin:
             A rank number.
         """
         self.reserved_ranks.remove(rank)
+        self.rank_to_schedule.append(rank)
         logger.debug(
-            f"RoundRobin release rank {rank} reserved for actor "
+            f"Scheduler release rank {rank} reserved for actor "
             + f"on worker with rank {communication.MPIState.get_instance().global_rank}"
         )
+
+    def increment_tasks_on_worker(self, rank):
+        """
+        Increments the count of tasks submitted to a worker.
+        This helps to track tasks submitted per workers
+        Parameters
+        ----------
+        rank : int
+            A rank number.
+        """
+        self.task_per_worker[rank] += 1
+
+    def decrement_tasks_on_worker(self, rank):
+        """
+        Decrement the count of tasks submitted to a worker.
+        This helps to track tasks submitted per workers
+        Parameters
+        ----------
+        rank : int
+            A rank number.
+        """
+        self.task_per_worker[rank] -= 1
+
+    def decrement_done_tasks(self, tasks_done):
+        self.task_per_worker = {
+            key: self.task_per_worker[key] - tasks_done.get(key, 0)
+            for key in self.task_per_worker
+        }
 
 
 def pull_data(comm, owner_rank=None):

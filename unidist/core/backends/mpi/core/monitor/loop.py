@@ -27,13 +27,19 @@ mpi_state = communication.MPIState.get_instance()
 logger_name = "monitor_{}".format(mpi_state.global_rank if mpi_state is not None else 0)
 log_file = "{}.log".format(logger_name)
 monitor_logger = common.get_logger(logger_name, log_file)
-
+initial_worker_number = 2
 
 class TaskCounter:
     __instance = None
 
     def __init__(self):
         self.task_counter = 0
+        self.task_done_per_worker_unsend = {
+            k: 0
+            for k in range(
+                initial_worker_number, communication.MPIState.get_instance().global_size
+            )
+        }
 
     @classmethod
     def get_instance(cls):
@@ -48,9 +54,10 @@ class TaskCounter:
             cls.__instance = TaskCounter()
         return cls.__instance
 
-    def increment(self):
+    def increment(self,rank):
         """Increment task counter by one."""
         self.task_counter += 1
+        self.task_done_per_worker_unsend[rank] += 1
 
 
 class DataIDTracker:
@@ -195,7 +202,7 @@ def monitor_loop():
         )
         # Proceed the request
         if operation_type == common.Operation.TASK_DONE:
-            task_counter.increment()
+            task_counter.increment(source_rank)
             output_data_ids = communication.mpi_recv_object(
                 mpi_state.global_comm, source_rank
             )
@@ -213,10 +220,17 @@ def monitor_loop():
             wait_handler.process_wait_requests()
         elif operation_type == common.Operation.GET_TASK_COUNT:
             # We use a blocking send here because the receiver is waiting for the result.
+            info_tasks = {
+                "executed_task_counter": task_counter.task_counter,
+                "tasks_completed": task_counter.task_done_per_worker_unsend,
+            }
             communication.mpi_send_object(
                 mpi_state.global_comm,
-                task_counter.task_counter,
+                info_tasks,
                 source_rank,
+            )
+            task_counter.task_done_per_worker_unsend = dict.fromkeys(
+                task_counter.task_done_per_worker_unsend, 0
             )
         elif operation_type == common.Operation.RESERVE_SHARED_MEMORY:
             request = communication.mpi_recv_object(mpi_state.global_comm, source_rank)
