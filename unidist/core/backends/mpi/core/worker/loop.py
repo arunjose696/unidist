@@ -22,7 +22,7 @@ from unidist.core.backends.mpi.core.worker.task_store import TaskStore
 from unidist.core.backends.mpi.core.async_operations import AsyncOperations
 from unidist.core.backends.mpi.core.controller.common import pull_data
 from unidist.core.backends.mpi.core.shared_object_store import SharedObjectStore
-
+from unidist.core.backends.mpi.core.controller.common import Scheduler
 # TODO: Find a way to move this after all imports
 mpi4py.rc(recv_mprobe=False, initialize=False)
 from mpi4py import MPI  # noqa: E402
@@ -91,6 +91,7 @@ async def worker_loop():
 
     # Barrier to check if worker process is ready to start the communication loop
     mpi_state.global_comm.Barrier()
+    scheduler = Scheduler.get_instance()
     w_logger.debug("Worker loop started")
     # Once the worker receives the cancel signal from ``Root`` rank,
     # it is getting to shutdown. All pending requests and communications are cancelled,

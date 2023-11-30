@@ -15,7 +15,7 @@ from unidist.core.backends.mpi.core.local_object_store import LocalObjectStore
 from unidist.core.backends.mpi.core.shared_object_store import SharedObjectStore
 from unidist.core.backends.mpi.core.serialization import serialize_complex_data
 from unidist.core.backends.mpi.core.worker.request_store import RequestStore
-
+from unidist.core.backends.mpi.core.controller.common import Scheduler
 mpi_state = communication.MPIState.get_instance()
 # Logger configuration
 # When building documentation we do not have MPI initialized so
@@ -224,6 +224,7 @@ class TaskStore:
         """
         local_store = LocalObjectStore.get_instance()
         shared_store = SharedObjectStore.get_instance()
+        
         completed_data_ids = []
         # Note that if a task is coroutine,
         # the local store or the shared store will contain output data
@@ -251,6 +252,7 @@ class TaskStore:
                         "Task evaluation time: {}".format(time.perf_counter() - start)
                     )
                     w_logger.debug("- End task execution -")
+                    Scheduler.get_instance().completed_tasks_buffer[mpi_state.get_instance().global_rank]+=1
 
                 except Exception as e:
                     w_logger.debug("Exception - {}".format(e))
@@ -323,7 +325,7 @@ class TaskStore:
         else:
             try:
                 w_logger.debug("- Start task execution -")
-
+                x=1
                 for arg in args:
                     if isinstance(arg, Exception):
                         raise arg
@@ -340,9 +342,10 @@ class TaskStore:
                     "Task evaluation time: {}".format(time.perf_counter() - start)
                 )
                 w_logger.debug("- End task execution -")
-
+            
+                Scheduler.get_instance().completed_tasks_buffer[mpi_state.get_instance().global_rank]+=1
             except Exception as e:
-                w_logger.debug("Exception - {}".format(e))
+                w_logger.debug("Exception {}".format(e))
 
                 if (
                     isinstance(output_data_ids, (list, tuple))

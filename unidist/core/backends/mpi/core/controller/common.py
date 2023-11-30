@@ -13,7 +13,10 @@ from unidist.core.backends.mpi.core.async_operations import AsyncOperations
 from unidist.core.backends.mpi.core.local_object_store import LocalObjectStore
 from unidist.core.backends.mpi.core.shared_object_store import SharedObjectStore
 from unidist.core.backends.mpi.core.serialization import serialize_complex_data
-
+# TODO: Find a way to move this after all imports
+import mpi4py
+mpi4py.rc(recv_mprobe=False, initialize=False)
+from mpi4py import MPI  # noqa: E402
 
 logger = common.get_logger("common", "common.log")
 
@@ -24,10 +27,10 @@ class Scheduler:
     def __init__(self):
         self.reserved_ranks = []
         mpi_state = communication.MPIState.get_instance()
-        self.task_per_worker = {
+        self.task_submitted_per_worker = {
             k: 0
             for k in range(
-                initial_worker_number, communication.MPIState.get_instance().global_size
+                initial_worker_number, mpi_state.global_size
                     )
         }
 
@@ -35,13 +38,26 @@ class Scheduler:
             rank
             for rank in range(
                 initial_worker_number,
-                communication.MPIState.get_instance().global_size,
+                mpi_state.global_size,
             )
             # check if a rank to schedule is not equal to the rank
             # of the current process to not get into recursive scheduling
             if rank != communication.MPIState.get_instance().global_rank
         ]
         logger.debug(f"Scheduler init for {mpi_state.global_rank} rank")
+        info = MPI.Info.Create()
+        info.Set("alloc_shared_noncontig", "true")
+        self.win = MPI.Win.Allocate_shared(
+            mpi_state.global_size * MPI.LONG.size
+            if mpi_state.is_monitor_process()
+            else 0,
+            MPI.LONG.size,
+            comm=mpi_state.host_comm,
+            info=info,
+        )
+        task_buffer, _ = self.win.Shared_query(communication.MPIRank.MONITOR)
+        self.completed_tasks_buffer = memoryview(task_buffer).cast("l")
+
 
     @classmethod
     def get_instance(cls):
@@ -65,9 +81,13 @@ class Scheduler:
         int
             A rank number.
         """
+        def get_pending_tasks(item):
+            return (self.task_submitted_per_worker[item]-Scheduler.get_instance().completed_tasks_buffer[item],self.task_submitted_per_worker[item])
+            
         next_rank = min(
-            self.rank_to_schedule, key=self.task_per_worker.get, default=None
+            self.rank_to_schedule, key=get_pending_tasks, default=None
         )
+        # print(self.task_submitted_per_worker)
 
         if next_rank is None:
             raise Exception("All ranks blocked")
@@ -121,7 +141,7 @@ class Scheduler:
         rank : int
             A rank number.
         """
-        self.task_per_worker[rank] += 1
+        self.task_submitted_per_worker[rank] += 1
 
     def decrement_tasks_on_worker(self, rank):
         """
@@ -132,12 +152,12 @@ class Scheduler:
         rank : int
             A rank number.
         """
-        self.task_per_worker[rank] -= 1
+        self.task_submitted_per_worker[rank] -= 1
 
     def decrement_done_tasks(self, tasks_done):
-        self.task_per_worker = {
-            key: self.task_per_worker[key] - tasks_done.get(key, 0)
-            for key in self.task_per_worker
+        self.task_submitted_per_worker = {
+            key: self.task_submitted_per_worker[key] - tasks_done.get(key, 0)
+            for key in self.task_submitted_per_worker
         }
 
 

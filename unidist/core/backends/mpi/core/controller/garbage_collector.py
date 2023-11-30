@@ -127,8 +127,7 @@ class GarbageCollector:
                         root_monitor,
                     )
         executed_task_counter = info_tasks["executed_task_counter"]
-        tasks_completed = info_tasks["tasks_completed"]
-        Scheduler.get_instance().decrement_done_tasks(tasks_completed)
+        
         if len(self._cleanup_list) > self._cleanup_list_threshold:
             if self._cleanup_counter % self._cleanup_threshold == 0:
                 timestamp_snapshot = time.perf_counter()

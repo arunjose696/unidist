@@ -264,6 +264,7 @@ def init():
         signal.signal(signal.SIGINT, _termination_handler)
         # Exit the init function in root only after monitor and worker loops have started
         mpi_state.global_comm.Barrier()
+        scheduler = Scheduler.get_instance()
         return
     elif mpi_state.is_monitor_process():
         from unidist.core.backends.mpi.core.monitor.loop import monitor_loop
@@ -535,6 +536,7 @@ def submit(task, *args, num_returns=1, **kwargs):
     # if all the tasks were completed
     garbage_collector.regular_cleanup()
     scheduler = Scheduler.get_instance()
+    #print(f"in rank 2 ={Scheduler.get_instance().completed_tasks_buffer[2]} in rank 3 ={Scheduler.get_instance().completed_tasks_buffer[3]}")
     dest_rank = scheduler.schedule_rank()
     scheduler.increment_tasks_on_worker(dest_rank)
 
