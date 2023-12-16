@@ -5,6 +5,7 @@
 """Common functionality related to `controller`."""
 
 import itertools
+from collections import Counter 
 
 from unidist.core.backends.common.data_id import is_data_id
 import unidist.core.backends.mpi.core.common as common
@@ -72,7 +73,7 @@ class Scheduler:
             cls.__instance = Scheduler()
         return cls.__instance
 
-    def schedule_rank(self):
+    def schedule_rank(self,ownership_counts):
         """
         Find the next non-reserved rank for task/actor-task execution.
 
@@ -82,7 +83,7 @@ class Scheduler:
             A rank number.
         """
         def get_pending_tasks(item):
-            return (self.task_submitted_per_worker[item]-Scheduler.get_instance().completed_tasks_buffer[item],self.task_submitted_per_worker[item])
+            return (self.task_submitted_per_worker[item]-Scheduler.get_instance().completed_tasks_buffer[item],-1*ownership_counts[item])
             
         next_rank = min(
             self.rank_to_schedule, key=get_pending_tasks, default=None
@@ -414,7 +415,19 @@ def _push_data_owner(dest_rank, data_id):
         dest_rank,
     )
     async_operations.extend(h_list)
-
+def get_owneship_counts(value):
+    ownershipCounts = Counter()
+    local_store = LocalObjectStore.get_instance()
+    if isinstance(value, (list, tuple)):
+        for v in value:
+            ownershipCounts += get_owneship_counts(v)
+    elif isinstance(value, dict):
+        for v in value.values():
+            ownershipCounts += get_owneship_counts(v)
+    elif is_data_id(value) and local_store.contains_data_owner(value):
+        return Counter([local_store.get_data_owner(value)])
+    return ownershipCounts
+    
 
 def push_data(dest_rank, value, is_blocking_op=False):
     """

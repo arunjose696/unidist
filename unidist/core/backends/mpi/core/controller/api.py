@@ -28,6 +28,7 @@ from unidist.core.backends.mpi.core.controller.common import (
     request_worker_data,
     push_data,
     Scheduler,
+    get_owneship_counts
 )
 import unidist.core.backends.mpi.core.common as common
 import unidist.core.backends.mpi.core.communication as communication
@@ -535,9 +536,11 @@ def submit(task, *args, num_returns=1, **kwargs):
     # Initiate reference count based cleanup
     # if all the tasks were completed
     garbage_collector.regular_cleanup()
+    ownership_counts = get_owneship_counts([args,kwargs,task])
+    
     scheduler = Scheduler.get_instance()
     #print(f"in rank 2 ={Scheduler.get_instance().completed_tasks_buffer[2]} in rank 3 ={Scheduler.get_instance().completed_tasks_buffer[3]}")
-    dest_rank = scheduler.schedule_rank()
+    dest_rank = scheduler.schedule_rank(ownership_counts)
     scheduler.increment_tasks_on_worker(dest_rank)
 
     local_store = LocalObjectStore.get_instance()

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Actor specific functionality using MPI backend."""
-
+from collections import Counter
 import unidist.core.backends.mpi.core.common as common
 import unidist.core.backends.mpi.core.communication as communication
 from unidist.core.backends.mpi.core.async_operations import AsyncOperations
@@ -93,7 +93,7 @@ class Actor:
         self._args = args
         self._kwargs = kwargs
         self._owner_rank = (
-            Scheduler.get_instance().schedule_rank()
+            Scheduler.get_instance().schedule_rank(Counter())
             if owner_rank is None
             else owner_rank
         )
